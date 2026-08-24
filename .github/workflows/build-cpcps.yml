@@ -5,18 +5,22 @@ on:
     inputs:
       target:
         description: Build target
+        type: string
         default: CPCPS
 
       layers-path:
         description: Path in repo to layers to stack on BR
+        type: string
         default: .
 
       brofbrs-ref:
         description: Git ref for vanbroup/brofbrs
+        type: string
         default: main
 
       br-ref:
         description: Git ref for cabforum/servercert
+        type: string
         default: main
 
     outputs:

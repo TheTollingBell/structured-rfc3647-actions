@@ -5,10 +5,12 @@ on:
     inputs:
       build-artifact:
         description: Name of input artifact
+        type: string
         default: CPCPS-document
 
       markdown-file:
         description: Compiled markdown file name
+        type: string
         default: CPCPS.md
 
     outputs:
