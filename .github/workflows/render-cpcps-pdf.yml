@@ -71,6 +71,8 @@ jobs:
                         colortbl \
                         booktabs \
                         tools
+          cp -v "$(kpsewhich -var-value TEXMFSYSVAR)/fonts/conf/texlive-fontconfig.conf" /etc/fonts/conf.d/09-texlive.conf
+          fc-cache -f
 
       - name: Make pdf with pandoc + xelatex
         id: render # to grab the outputs
