@@ -43,18 +43,11 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends git ca-certificates
 
-      - name: Get workflow ref
-        # github.workflow_ref = "owner/repo/.github/workflows/<file>@<ref>";
-        run: |
-          WF="${{ github.workflow_ref }}"
-          echo "ASSETS_REPO=${WF%%/.github/workflows/*}" >> "$GITHUB_ENV"
-          echo "ASSETS_REF=${WF##*@}" >> "$GITHUB_ENV"
-
-      - name: Checkout LaTeX assets from this workflow's repo
+      - name: Checkout latex assets from this workflow's repo
         uses: actions/checkout@v7
         with:
-          repository: ${{ env.ASSETS_REPO }}
-          ref: ${{ env.ASSETS_REF }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: render-assets
 
       - name: Download input artifact
@@ -63,7 +56,7 @@ jobs:
           name: ${{ inputs.build-artifact }}
           path: ${{ runner.temp }}/render/input
 
-      - name: Install LaTeX packages
+      - name: Install latex packages
         # geometry/fancyhdr/hyperref/xcolor/fontspec/graphicx are already in the pandoc/latex image (https://github.com/pandoc/dockerfiles/blob/main/common/latex/packages.txt)
         run: |
           tlmgr update --self
@@ -92,7 +85,7 @@ jobs:
 
           pandoc "$MD" \
             -f markdown+gfm_auto_identifiers \
-            --standalone --no-highlight \
+            --standalone --syntax-highlighting=none \
             --lua-filter="$ASSETS/cpcps.lua" \
             --template="$ASSETS/cpcps.latex" \
             --pdf-engine=xelatex \
