@@ -1,0 +1,97 @@
+name: Build CPCPS Document
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: Build target
+        default: CPCPS
+
+      layers-path:
+        description: Path in repo to layers to stack on BR
+        default: .
+
+      brofbrs-ref:
+        description: Git ref for vanbroup/brofbrs
+        default: main
+
+      br-ref:
+        description: Git ref for cabforum/servercert
+        default: main
+
+    outputs:
+      artifact-id:
+        description: ID of artifact
+        value: ${{ jobs.build.outputs.artifact-id }}
+
+      artifact-url:
+        description: URL of artifact
+        value: ${{ jobs.build.outputs.artifact-url }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
+
+    env:
+      TARGET: ${{ inputs.target }}
+      LAYERS_PATH: ${{ inputs.layers-path }}
+
+    steps:
+      - name: Checkout CPCPS
+        uses: actions/checkout@v7
+        with:
+          path: cpcps
+
+      - name: Checkout brofbrs
+        uses: actions/checkout@v7
+        with:
+          repository: vanbroup/brofbrs
+          ref: ${{ inputs.brofbrs-ref }}
+          path: brofbrs
+
+      - name: Checkout BR
+        uses: actions/checkout@v7
+        with:
+          repository: cabforum/servercert
+          ref: ${{ inputs.br-ref }}
+          path: servercert
+
+      - name: Setup python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Install python deps
+        run: pip install python-frontmatter==1.0.0
+
+      - name: Generate BR structured dir
+        working-directory: brofbrs/tools # the tools use relative filenames
+        run: |
+          STRUCTURED_DIR="$RUNNER_TEMP/build/structured"
+          mkdir -p "$STRUCTURED_DIR"
+          python transform.py "$GITHUB_WORKSPACE/servercert/docs/BR.md" --output "$STRUCTURED_DIR/"
+
+      - name: Overlay CPCPS into BR
+        run: | # rsync should "merge" the two directories.
+          LAYERS="$GITHUB_WORKSPACE/cpcps/${LAYERS_PATH#./}" # chops of the leading and trailing slash which is important for rsync merge
+          LAYERS="${LAYERS%/}"
+          rsync -a "$LAYERS/" "$RUNNER_TEMP/build/structured/"
+
+      - name: Build final md document
+        working-directory: brofbrs/tools
+        run: |
+          OUTPUT_DIR="$RUNNER_TEMP/build/output"
+          mkdir -p "$OUTPUT_DIR"
+          python build.py "$TARGET" --input "$RUNNER_TEMP/build/structured/" --output "$OUTPUT_DIR/"
+          echo "Built ${TARGET}.md and ${TARGET}_requirements.csv:"
+          ls -la "$OUTPUT_DIR"
+
+      - name: Upload document artifact
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ format('{0}-document', inputs.target) }} # formats to the <target>-filetype, eg cpcps-document
+          path: ${{ runner.temp }}/build/output/

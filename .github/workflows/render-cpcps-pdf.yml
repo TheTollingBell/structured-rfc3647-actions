@@ -1,0 +1,104 @@
+name: Render CPCPS PDF
+
+on:
+  workflow_call:
+    inputs:
+      build-artifact:
+        description: Name of input artifact
+        default: CPCPS-document
+
+      markdown-file:
+        description: Compiled markdown file name
+        default: CPCPS.md
+
+    outputs:
+      artifact-id:
+        description: ID of artifact
+        value: ${{ jobs.render.outputs.artifact-id }}
+
+      artifact-url:
+        description: URL of artifact
+        value: ${{ jobs.render.outputs.artifact-url }}
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+
+    # pandoc + tex in this image
+    # assets checkout out from pinned ref of this workflow
+    container: pandoc/latex:3.10.0.0-ubuntu
+
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
+
+    env:
+      MARKDOWN_FILE: ${{ inputs.markdown-file }}
+
+    steps:
+      - name: Install git # no certs by default
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Get workflow ref
+        # github.workflow_ref = "owner/repo/.github/workflows/<file>@<ref>";
+        run: |
+          WF="${{ github.workflow_ref }}"
+          echo "ASSETS_REPO=${WF%%/.github/workflows/*}" >> "$GITHUB_ENV"
+          echo "ASSETS_REF=${WF##*@}" >> "$GITHUB_ENV"
+
+      - name: Checkout LaTeX assets from this workflow's repo
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.ASSETS_REPO }}
+          ref: ${{ env.ASSETS_REF }}
+          path: render-assets
+
+      - name: Download input artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.build-artifact }}
+          path: ${{ runner.temp }}/render/input
+
+      - name: Install LaTeX packages
+        # geometry/fancyhdr/hyperref/xcolor/fontspec/graphicx are already in the pandoc/latex image (https://github.com/pandoc/dockerfiles/blob/main/common/latex/packages.txt)
+        run: |
+          tlmgr install tex-gyre \
+                        caladea \
+                        titlesec \
+                        tocloft \
+                        enumitem \
+                        lastpage \
+                        pdflscape \
+                        parskip \
+                        colortbl \
+                        booktabs \
+                        tools
+
+      - name: Make pdf with pandoc + xelatex
+        id: render # to grab the outputs
+        run: |
+          ASSETS="$GITHUB_WORKSPACE/render-assets/.github/render-cpcps"
+          MD="$RUNNER_TEMP/render/input/$MARKDOWN_FILE"
+          OUT_DIR="$RUNNER_TEMP/render/output"
+          mkdir -p "$OUT_DIR"
+
+          BASE="$(basename "$MD" .md)"
+          echo "basename=${BASE}" >> "$GITHUB_OUTPUT"
+
+          pandoc "$MD" \
+            -f markdown+gfm_auto_identifiers \
+            --standalone --no-highlight \
+            --lua-filter="$ASSETS/cpcps.lua" \
+            --template="$ASSETS/cpcps.latex" \
+            --pdf-engine=xelatex \
+            --pdf-engine-opt=-interaction=nonstopmode \
+            -o "$OUT_DIR/${BASE}.pdf"
+
+      - name: Upload PDF artifact
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ format('{0}-pdf', steps.render.outputs.basename) }} # uses basename from previous render step
+          path: ${{ runner.temp }}/render/output/
