@@ -66,6 +66,7 @@ jobs:
       - name: Install LaTeX packages
         # geometry/fancyhdr/hyperref/xcolor/fontspec/graphicx are already in the pandoc/latex image (https://github.com/pandoc/dockerfiles/blob/main/common/latex/packages.txt)
         run: |
+          tlmgr update --self
           tlmgr install tex-gyre \
                         caladea \
                         titlesec \
