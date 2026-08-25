@@ -13,6 +13,11 @@ on:
         type: string
         default: .
 
+      assets-path:
+        description: Path to assets folder in repo
+        type: string
+        default: ./assets
+
       brofbrs-ref:
         description: Git ref for vanbroup/brofbrs
         type: string
@@ -42,6 +47,7 @@ jobs:
     env:
       TARGET: ${{ inputs.target }}
       LAYERS_PATH: ${{ inputs.layers-path }}
+      ASSETS: ${{ inputs.assets-path }}
 
     steps:
       - name: Checkout CPCPS
@@ -92,6 +98,9 @@ jobs:
           python build.py "$TARGET" --input "$RUNNER_TEMP/build/structured/" --output "$OUTPUT_DIR/"
           echo "Built ${TARGET}.md and ${TARGET}_requirements.csv:"
           ls -la "$OUTPUT_DIR"
+
+      - name: Copy in assets
+        run: cp -rv "${GITHUB_WORKSPACE}/cpcps/${LAYERS_PATH#./}" "$RUNNER_TEMP/build/output"
 
       - name: Upload document artifact
         id: upload
