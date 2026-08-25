@@ -99,4 +99,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ format('{0}-pdf', steps.render.outputs.basename) }} # uses basename from previous render step
-          path: ${{ runner.temp }}/render/output/
+          path: ${{ runner.temp }}/render/output/${{ steps.render.outputs.basename }}.pdf
