@@ -47,7 +47,7 @@ jobs:
     env:
       TARGET: ${{ inputs.target }}
       LAYERS_PATH: ${{ inputs.layers-path }}
-      ASSETS: ${{ inputs.assets-path }}
+      ASSETS_PATH: ${{ inputs.assets-path }}
 
     steps:
       - name: Checkout CPCPS
