@@ -78,7 +78,8 @@ jobs:
         id: render # to grab the outputs
         run: |
           ASSETS="$GITHUB_WORKSPACE/render-assets/.github/render-cpcps"
-          MD="$RUNNER_TEMP/render/input/$MARKDOWN_FILE"
+          INPUT_DIR="$RUNNER_TEMP/render/input"
+          MD="$INPUT_DIR/$MARKDOWN_FILE"
           OUT_DIR="$RUNNER_TEMP/render/output"
           mkdir -p "$OUT_DIR"
 
@@ -90,6 +91,7 @@ jobs:
             --standalone --syntax-highlighting=none \
             --lua-filter="$ASSETS/cpcps.lua" \
             --template="$ASSETS/cpcps.latex" \
+            --resource-path="$INPUT_DIR/assets" \
             --pdf-engine=xelatex \
             --pdf-engine-opt=-interaction=nonstopmode \
             -o "$OUT_DIR/${BASE}.pdf"

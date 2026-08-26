@@ -100,7 +100,7 @@ jobs:
           ls -la "$OUTPUT_DIR"
 
       - name: Copy in assets
-        run: cp -rv "${GITHUB_WORKSPACE}/cpcps/${ASSETS_PATH#./}" "$RUNNER_TEMP/build/output"
+        run: cp -rv "${GITHUB_WORKSPACE}/cpcps/${ASSETS_PATH#./}" "$RUNNER_TEMP/build/output/assets/"
 
       - name: Upload document artifact
         id: upload
