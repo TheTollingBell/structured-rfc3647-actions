@@ -6,10 +6,13 @@ on:
       build-artifact:
         description: Name of input artifact
         type: string
-        default: CPCPS-document
+
+      markdown-path:
+        description: Path in the calling repo to a CPCPS markdown file (mutually exclusive with build-artifact)
+        type: string
 
       markdown-file:
-        description: Compiled markdown file name
+        description: Compiled markdown file name within the input artifact
         type: string
         default: CPCPS.md
 
@@ -38,6 +41,20 @@ jobs:
       MARKDOWN_FILE: ${{ inputs.markdown-file }}
 
     steps:
+      - name: Validate inputs
+        env:
+          BUILD_ARTIFACT: ${{ inputs.build-artifact }}
+          MARKDOWN_PATH: ${{ inputs.markdown-path }}
+        run: |
+          if [ -n "$BUILD_ARTIFACT" ] && [ -n "$MARKDOWN_PATH" ]; then
+            echo "::error::Provide only one of build-artifact or markdown-path"
+            exit 1
+          fi
+          if [ -z "$BUILD_ARTIFACT" ] && [ -z "$MARKDOWN_PATH" ]; then
+            echo "::error::Provide one of build-artifact or markdown-path"
+            exit 1
+          fi
+
       - name: Install git # no certs by default
         run: |
           apt-get update
@@ -50,7 +67,14 @@ jobs:
           ref: ${{ job.workflow_sha }}
           path: render-assets
 
+      - name: Checkout calling repo for markdown input
+        if: inputs.markdown-path != ''
+        uses: actions/checkout@v7
+        with:
+          path: render-input
+
       - name: Download input artifact
+        if: inputs.build-artifact != ''
         uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.build-artifact }}
@@ -76,9 +100,16 @@ jobs:
 
       - name: Make pdf with pandoc + xelatex
         id: render # to grab the outputs
+        env:
+          BUILD_ARTIFACT: ${{ inputs.build-artifact }}
+          MARKDOWN_PATH: ${{ inputs.markdown-path }}
         run: |
           ASSETS="$GITHUB_WORKSPACE/render-assets/.github/render-cpcps"
-          MD="$RUNNER_TEMP/render/input/$MARKDOWN_FILE"
+          if [ -n "$BUILD_ARTIFACT" ]; then
+            MD="$RUNNER_TEMP/render/input/$MARKDOWN_FILE"
+          else
+            MD="$GITHUB_WORKSPACE/render-input/$MARKDOWN_PATH"
+          fi
           OUT_DIR="$RUNNER_TEMP/render/output"
           mkdir -p "$OUT_DIR"
 
