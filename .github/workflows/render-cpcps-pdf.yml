@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       build-artifact:
-        description: Name of input artifact
+        description: Name of input artifact (defaults to CPCPS-document)
         type: string
 
       markdown-path:
@@ -12,7 +12,7 @@ on:
         type: string
 
       markdown-file:
-        description: Compiled markdown file name within the input artifact
+        description: Compiled markdown file name
         type: string
         default: CPCPS.md
 
@@ -47,11 +47,7 @@ jobs:
           MARKDOWN_PATH: ${{ inputs.markdown-path }}
         run: |
           if [ -n "$BUILD_ARTIFACT" ] && [ -n "$MARKDOWN_PATH" ]; then
-            echo "::error::Provide only one of build-artifact or markdown-path"
-            exit 1
-          fi
-          if [ -z "$BUILD_ARTIFACT" ] && [ -z "$MARKDOWN_PATH" ]; then
-            echo "::error::Provide one of build-artifact or markdown-path"
+            echo "::error::provide only one of build-artifact or markdown-path"
             exit 1
           fi
 
@@ -74,10 +70,10 @@ jobs:
           path: render-input
 
       - name: Download input artifact
-        if: inputs.build-artifact != ''
+        if: inputs.markdown-path == ''
         uses: actions/download-artifact@v7
         with:
-          name: ${{ inputs.build-artifact }}
+          name: ${{ inputs.build-artifact || 'CPCPS-document' }}
           path: ${{ runner.temp }}/render/input
 
       - name: Install latex packages
@@ -101,14 +97,13 @@ jobs:
       - name: Make pdf with pandoc + xelatex
         id: render # to grab the outputs
         env:
-          BUILD_ARTIFACT: ${{ inputs.build-artifact }}
           MARKDOWN_PATH: ${{ inputs.markdown-path }}
         run: |
           ASSETS="$GITHUB_WORKSPACE/render-assets/.github/render-cpcps"
-          if [ -n "$BUILD_ARTIFACT" ]; then
-            MD="$RUNNER_TEMP/render/input/$MARKDOWN_FILE"
-          else
+          if [ -n "$MARKDOWN_PATH" ]; then
             MD="$GITHUB_WORKSPACE/render-input/$MARKDOWN_PATH"
+          else
+            MD="$RUNNER_TEMP/render/input/$MARKDOWN_FILE"
           fi
           OUT_DIR="$RUNNER_TEMP/render/output"
           mkdir -p "$OUT_DIR"
